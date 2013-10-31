@@ -19,6 +19,12 @@ typedef NS_ENUM(NSUInteger, KGModalBackgroundDisplayStyle){
 // Defaults to YES
 @property (nonatomic) BOOL tapOutsideToDismiss;
 
+// Content is wrapped in a border that suppresses 'tapOutside' event handling. This property sets the width for that border.
+// Defaults to 17.0
+// Set to 0 for disabling.
+// Negative values are illegal.
+@property (nonatomic, assign) CGFloat tapOutsidePadding;
+
 // Determins if the close button or tapping outside the modal should animate the dismissal
 // Defaults to YES
 @property (nonatomic) BOOL animateWhenDismissed;
@@ -38,6 +44,10 @@ typedef NS_ENUM(NSUInteger, KGModalBackgroundDisplayStyle){
 // Determins if the modal should rotate when the device rotates
 // Defaults to YES, only applies to iOS5
 @property (nonatomic) BOOL shouldRotate;
+
+/** Block which gets called after the hide animation is done */
+@property (nonatomic, copy) void (^modalDidFinishDismissing)(void);
+
 
 // The shared instance of the modal
 + (instancetype)sharedInstance;

@@ -13,6 +13,7 @@ CGFloat const kFadeInAnimationDuration = 0.3;
 CGFloat const kTransformPart1AnimationDuration = 0.2;
 CGFloat const kTransformPart2AnimationDuration = 0.1;
 NSString *const KGModalGradientViewTapped = @"KGModalGradientViewTapped";
+CGFloat const kCloseButtonPadding = 10;
 
 @interface KGModalGradientView : UIView
 @end
@@ -60,8 +61,17 @@ NSString *const KGModalGradientViewTapped = @"KGModalGradientViewTapped";
     self.animateWhenDismissed = YES;
     self.showCloseButton = YES;
     self.modalBackgroundColor = [UIColor colorWithWhite:0 alpha:0.5];
+    self.tapOutsidePadding = 17.;
     
     return self;
+}
+
+- (void)setTapOutsidePadding:(CGFloat)tapOutsidePadding {
+    if (tapOutsidePadding < 0) {
+        // Negative values are not allowed
+        tapOutsidePadding = 0;
+    }
+    _tapOutsidePadding = tapOutsidePadding;
 }
 
 - (void)setShowCloseButton:(BOOL)showCloseButton{
@@ -93,17 +103,20 @@ NSString *const KGModalGradientViewTapped = @"KGModalGradientViewTapped";
     self.window.rootViewController = viewController;
     self.viewController = viewController;
     
-    CGFloat padding = 17;
-    CGRect containerViewRect = CGRectInset(contentView.bounds, -padding, -padding);
+    CGFloat padding = self.tapOutsidePadding;
+    CGRect containerViewRect = CGRectInset(contentView.frame, -padding, -padding);
     containerViewRect.origin.x = containerViewRect.origin.y = 0;
-    containerViewRect.origin.x = round(CGRectGetMidX(self.window.bounds)-CGRectGetMidX(containerViewRect));
-    containerViewRect.origin.y = round(CGRectGetMidY(self.window.bounds)-CGRectGetMidY(containerViewRect));
+
     KGModalContainerView *containerView = [[KGModalContainerView alloc] initWithFrame:containerViewRect];
+    containerView.center = CGPointMake(self.window.bounds.size.width / 2. , self.window.bounds.size.height / 2.);
+    
     containerView.modalBackgroundColor = self.modalBackgroundColor;
     containerView.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin|UIViewAutoresizingFlexibleRightMargin|
     UIViewAutoresizingFlexibleTopMargin|UIViewAutoresizingFlexibleBottomMargin;
     containerView.layer.rasterizationScale = [[UIScreen mainScreen] scale];
+    contentView.center = CGPointMake(containerView.bounds.size.width/2., containerView.bounds.size.height/2.);
     contentView.frame = (CGRect){padding, padding, contentView.bounds.size};
+
     [containerView addSubview:contentView];
     [viewController.view addSubview:containerView];
     self.containerView = containerView;
@@ -111,7 +124,10 @@ NSString *const KGModalGradientViewTapped = @"KGModalGradientViewTapped";
     KGModalCloseButton *closeButton = [[KGModalCloseButton alloc] init];
     [closeButton addTarget:self action:@selector(closeAction:) forControlEvents:UIControlEventTouchUpInside];
     [closeButton setHidden:!self.showCloseButton];
-    [containerView addSubview:closeButton];
+    [self.window addSubview:closeButton];
+    CGFloat x = (self.window.bounds.size.width - closeButton.bounds.size.width) - kCloseButtonPadding;
+    CGFloat y = kCloseButtonPadding + 20; // 20 pts for status bar (iOS7 and before)
+    closeButton.frame = CGRectMake(x, y, closeButton.bounds.size.width, closeButton.bounds.size.height);
     self.closeButton = closeButton;
     
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(tapCloseAction:)
@@ -121,6 +137,7 @@ NSString *const KGModalGradientViewTapped = @"KGModalGradientViewTapped";
     // This will cause the window to display
     dispatch_async(dispatch_get_main_queue(), ^{
         [self.window makeKeyAndVisible];
+        [self.window bringSubviewToFront:self.closeButton];
         
         if(animated){
             viewController.styleView.alpha = 0;
@@ -171,6 +188,9 @@ NSString *const KGModalGradientViewTapped = @"KGModalGradientViewTapped";
 - (void)hideAnimated:(BOOL)animated withCompletionBlock:(void(^)())completion{
     if(!animated){
         [self cleanup];
+        if (self.modalDidFinishDismissing) {
+            self.modalDidFinishDismissing();
+        }
         return;
     }
     
@@ -190,6 +210,9 @@ NSString *const KGModalGradientViewTapped = @"KGModalGradientViewTapped";
                 [self cleanup];
                 if(completion){
                     completion();
+                }
+                if (self.modalDidFinishDismissing) {
+                    self.modalDidFinishDismissing();
                 }
             }];
         }];
